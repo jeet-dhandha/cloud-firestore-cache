@@ -1,0 +1,10 @@
+# Example .npmignore file
+node_modules
+info.png
+/dist
+*.log
+package-lock.json
+/testL
+/src
+.README.md
+deploy.sh
