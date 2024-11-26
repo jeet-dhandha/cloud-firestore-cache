@@ -1,7 +1,7 @@
 {
   "name": "@libs-jd/cloud-firestore-cache",
   "description": "Utility functions to work with table data.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "homepage": "https://github.com/jeet-dhandha/cloud-firestore-cache",
   "author": "Jeet Dhandha",
   "license": "MIT",

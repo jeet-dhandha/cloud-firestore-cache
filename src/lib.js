@@ -102,7 +102,7 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
     // Check if the document is in cache
     if (cache.has(path) && !forceGet) {
       log(`Fetching ${path} from cache.`);
-      return JSON.parse(cache.get(path));
+      return cache.get(path);
     }
 
     // If not in cache, fetch from Firestore
@@ -112,7 +112,7 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
 
     if (docSnap.exists) {
       const data = docSnap.data();
-      cache.set(path, JSON.stringify(data));
+      cache.set(path, data);
       return data;
     } else {
       log(`No document exists at ${path}`);
@@ -157,7 +157,7 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
 
     // Optimisation 1:
     if (!hasFieldValueOrDotKeys && cache.has(path)) {
-      const cached = JSON.parse(cache.get(path));
+      const cached = cache.get(path);
       const merged = merge({}, cached, data);
 
       if (isEqual(cached, merged)) {
@@ -170,7 +170,7 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
 
     // Optimisation 2:
     if (!hasFieldValueOrDotKeys && cache.has(path)) {
-      cache.set(path, JSON.stringify(merge({}, JSON.parse(cache.get(path)), data)));
+      cache.set(path, merge({}, cache.get(path), data));
     } else if (fetch || (hasFieldValueOrDotKeys && cache.has(path))) {
       await get(path, true); // Force fetch from Firestore and set in cache
     }
@@ -191,7 +191,7 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
     const hasFieldValueOrDotKeys = checkForFieldValueOrDotKeys(data);
 
     if (!hasFieldValueOrDotKeys && cache.has(path)) {
-      const cached = JSON.parse(cache.get(path));
+      const cached = cache.get(path);
       const merged = Object.assign({}, cached, data);
 
       if (isEqual(cached, merged)) {
@@ -211,7 +211,7 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
     }
 
     if (!checkForFieldValueOrDotKeys(data) && cache.has(path)) {
-      cache.set(path, JSON.stringify(Object.assign({}, JSON.parse(cache.get(path)), data)));
+      cache.set(path, Object.assign({}, cache.get(path), data));
     } else if (fetch || (hasFieldValueOrDotKeys && cache.has(path))) {
       await get(path, true); // Force fetch from Firestore and set in cache
     }
