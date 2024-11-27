@@ -54,6 +54,19 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
   const cache = new Map();
   const deletedDocs = new Map();
 
+  const isCollection = (path) => path.split("/").length % 2 === 1;
+  const getAllCollectionPaths = (path) => {
+    const paths = [];
+    const pathParts = path.split("/");
+    for (let i = 0; i < pathParts.length; i++) {
+      const collectionPath = pathParts.slice(0, i + 1).join("/");
+      if (isCollection(collectionPath)) {
+        paths.push(collectionPath);
+      }
+    }
+    return paths;
+  };
+
   let intervalCount = 0;
 
   const initializeInterval = () =>
@@ -107,11 +120,26 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
 
     // If not in cache, fetch from Firestore
     log(`Fetching ${path} from Firestore.`);
-    const docRef = db.doc(path);
+
+    const docRef = isCollection(path) ? db.collection(path) : db.doc(path);
     const docSnap = await docRef.get();
+
+    if (isCollection(path)) {
+      if (docSnap.docs.length > 0) {
+        const data = docSnap.docs.map((doc) => ({ ...doc.data(), id: doc.id }));
+        cache.set(path, data);
+        return data;
+      }
+
+      log(`No documents exist at ${path}`);
+      cache.delete(path);
+      deletedDocs.set(path, true);
+      return null;
+    }
 
     if (docSnap.exists) {
       const data = docSnap.data();
+
       cache.set(path, data);
       return data;
     } else {
@@ -149,6 +177,11 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
 
   const set = async (path, data, { fetch } = { fetch: false }) => {
     resetInterval();
+
+    if (isCollection(path)) {
+      return null;
+    }
+
     const docRef = db.doc(path);
     // check if the document has any FieldValue elements or any "." dot separated keys.
     const hasFieldValueOrDotKeys = checkForFieldValueOrDotKeys(data);
@@ -170,7 +203,33 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
 
     // Optimisation 2:
     if (!hasFieldValueOrDotKeys && cache.has(path)) {
-      cache.set(path, merge({}, cache.get(path), data));
+      const cached = cache.get(path);
+      const merged = merge({}, cached, data);
+
+      if (isEqual(cached, merged)) {
+        log(`Document ${path} already exists in Firestore and cache.`);
+        if (!fetch) return null;
+        return cache.get(path);
+      }
+
+      const paths = getAllCollectionPaths(path);
+      const id = path.split("/").pop();
+
+      paths.forEach((p) => {
+        if (cache.has(p)) {
+          // Merge the new data with the existing data in cache's collection's path's array
+          const collectionData = cache.get(p);
+          const index = collectionData.findIndex((d) => d.id === id);
+          if (index !== -1 && !isEqual(collectionData[index], merged)) {
+            collectionData[index] = merged;
+          } else if (index === -1) {
+            collectionData.push(merged);
+          }
+          cache.set(p, collectionData);
+        }
+      });
+
+      cache.set(path, merged);
     } else if (fetch || (hasFieldValueOrDotKeys && cache.has(path))) {
       await get(path, true); // Force fetch from Firestore and set in cache
     }
@@ -196,10 +255,24 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
 
       if (isEqual(cached, merged)) {
         log(`Document ${path} already exists in Firestore and cache.`);
-
         if (!fetch) return null;
         return cache.get(path);
       }
+
+      const paths = getAllCollectionPaths(path);
+      const id = path.split("/").pop();
+
+      paths.forEach((p) => {
+        if (cache.has(p)) {
+          // Merge the new data with the existing data in cache's collection's path's array
+          const collectionData = cache.get(p);
+          const index = collectionData.findIndex((d) => d.id === id);
+          if (index !== -1 && !isEqual(collectionData[index], merged)) {
+            collectionData[index] = merged;
+          }
+          cache.set(p, collectionData);
+        }
+      });
     }
 
     try {

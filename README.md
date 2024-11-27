@@ -22,7 +22,7 @@ From `@libs-jb/cloud-firestore-cache` we can use the following functions:
 ```js
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, FieldValue } = require("firebase-admin/firestore");
-const FirestoreCache = require("@libs-jb/cloud-firestore-cache");
+const { FirestoreCache } = require("@libs-jb/cloud-firestore-cache");
 
 initializeApp();
 const firestoreInstance = getFirestore();
