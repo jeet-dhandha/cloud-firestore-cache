@@ -197,7 +197,7 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
       cache.set(`${collectionPath}/${id}`, merged);
     } else {
       id = await collectionRef.add(data).then((docRef) => docRef._id);
-      const merged = Object.assign({}, data, { _id });
+      const merged = Object.assign({}, data, { _id: id });
 
       if (cache.has(collectionPath)) {
         // Merge the new data with the existing data in cache's collection's path's array
