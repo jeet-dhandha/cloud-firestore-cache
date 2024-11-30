@@ -50,7 +50,7 @@ function omit(obj, keys) {
   }, {});
 }
 
-function merge(target, ...sources) {
+function mergeFn(target, ...sources) {
   sources.forEach((source) => {
     baseMerge(target, source);
   });
@@ -235,7 +235,7 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
     // Optimisation 1:
     if (!hasFieldValueOrDotKeys && cache.has(path)) {
       const cached = get(path);
-      const merged = merge({}, cached, data, { _id: `${path.split("/")}`.pop() });
+      const merged = mergeFn({}, cached, data, { _id: `${path.split("/")}`.pop() });
       const assigned = Object.assign({}, cached, data, { _id: `${path.split("/")}`.pop() });
       const finalData = merge ? merged : assigned;
 
@@ -254,7 +254,7 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
     // Optimisation 2:
     if (!hasFieldValueOrDotKeys && cache.has(path)) {
       const cached = get(path);
-      const merged = merge({}, cached, data, { _id: `${path.split("/")}`.pop() });
+      const merged = mergeFn({}, cached, data, { _id: `${path.split("/")}`.pop() });
       const assigned = Object.assign({}, cached, data, { _id: `${path.split("/")}`.pop() });
       const finalData = merge ? merged : assigned;
 
