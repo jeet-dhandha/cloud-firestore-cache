@@ -1,5 +1,5 @@
 const log = (...params) => {
-  console.log(...params);
+  // console.log(...params);
 };
 
 // merge.js
@@ -157,27 +157,21 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
   };
 
   const checkForFieldValueOrDotKeys = (data) => {
-    if (data instanceof Object) {
+    if (typeof data?.isEqual === "function") {
+      return true;
+    } else if (data instanceof Object) {
       for (const key in data) {
-        if (!data?.[key]) continue;
-        if (!data.hasOwnProperty(key)) continue;
-
         // ! Note: `Array` is not managed here.
-        if (data[key] instanceof Object) {
-          return checkForFieldValueOrDotKeys(data[key]);
-        } else if (
-          key.includes(".") ||
-          data[key] instanceof FieldValue.delete ||
-          data[key] instanceof FieldValue.serverTimestamp ||
-          data[key] instanceof FieldValue.increment ||
-          data[key] instanceof FieldValue.arrayUnion ||
-          data[key] instanceof FieldValue.arrayRemove ||
-          data[key] instanceof FieldValue
-        ) {
-          return false;
+        if (key.includes(".") || typeof data?.[key]?.isEqual === "function") {
+          return true;
+        } else if (data[key] instanceof Object) {
+          if (checkForFieldValueOrDotKeys(data[key])) {
+            return true;
+          }
         }
       }
     }
+
     return false;
   };
 
@@ -185,15 +179,14 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
     resetInterval();
 
     const collectionRef = db.collection(collectionPath);
-    const hasFieldValueOrDotKeys = checkForFieldValueOrDotKeys(data);
-    let id = await collectionRef.add(data).then((docRef) => docRef._id);
+    let id = await collectionRef.add(data).then((docRef) => docRef.id);
 
-    if (hasFieldValueOrDotKeys) {
-      const merged = Object.assign({}, data, { _id: id });
-      cache.set(`${collectionPath}/${id}`, merged);
+    if (checkForFieldValueOrDotKeys(data)) {
+      if (cache.has(collectionPath)) {
+        cache.delete(collectionPath);
+      }
     } else {
       const merged = Object.assign({}, data, { _id: id });
-
       if (cache.has(collectionPath)) {
         // Merge the new data with the existing data in cache's collection's path's array
         const collectionData = get(collectionPath);
@@ -201,8 +194,6 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
         if (Array.isArray(collectionData)) {
           collectionData.push(merged);
           cache.set(collectionPath, collectionData);
-        } else {
-          cache.set(collectionPath, [merged]);
         }
       }
 
@@ -210,7 +201,7 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
     }
 
     if (!fetch) {
-      log(`Document ${collectionPath} added to Firestore.`);
+      log(`Document ${collectionPath}/${id} added to Firestore.`);
       return null;
     }
 
@@ -266,6 +257,7 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
         const collectionData = get(lastPath);
         const index = collectionData.findIndex((d) => d._id === id);
         let isChanged = false;
+
         if (index !== -1 && !isEqual(collectionData[index], finalData)) {
           isChanged = true;
           collectionData[index] = finalData;
@@ -282,8 +274,9 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
       }
 
       cache.set(path, finalData);
-    } else if (fetch || (hasFieldValueOrDotKeys && cache.has(path))) {
-      await get(path, true); // Force fetch from Firestore and set in cache
+    } else if (hasFieldValueOrDotKeys && cache.has(path)) {
+      // Next time, it will fetch from Firestore
+      cache.delete(path);
     }
 
     if (!fetch) {
@@ -338,8 +331,10 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
 
     if (!checkForFieldValueOrDotKeys(data) && cache.has(path)) {
       cache.set(path, Object.assign({}, get(path), data, { _id: `${path.split("/")}`.pop() }));
-    } else if (fetch || (hasFieldValueOrDotKeys && cache.has(path))) {
-      await get(path, true); // Force fetch from Firestore and set in cache
+    } else if (hasFieldValueOrDotKeys && cache.has(path)) {
+      // Next time, it will fetch from Firestore
+      // await get(path, true); // Force fetch from Firestore and set in cache
+      cache.delete(path);
     }
 
     if (!fetch) {
@@ -348,6 +343,7 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
     }
 
     log(`Document ${path} updated in Firestore and cache.`);
+
     return get(path);
   };
 
