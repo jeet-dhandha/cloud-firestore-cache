@@ -105,10 +105,6 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
   interval = initializeInterval();
 
   const resetInterval = () => {
-    if (interval) {
-      return;
-    }
-
     clearInterval(interval);
     intervalCount = 0;
     interval = initializeInterval();
@@ -190,20 +186,24 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
 
     const collectionRef = db.collection(collectionPath);
     const hasFieldValueOrDotKeys = checkForFieldValueOrDotKeys(data);
-    let id;
+    let id = await collectionRef.add(data).then((docRef) => docRef._id);
+
     if (hasFieldValueOrDotKeys) {
-      id = await collectionRef.add(data).then((docRef) => docRef._id);
       const merged = Object.assign({}, data, { _id: id });
       cache.set(`${collectionPath}/${id}`, merged);
     } else {
-      id = await collectionRef.add(data).then((docRef) => docRef._id);
       const merged = Object.assign({}, data, { _id: id });
 
       if (cache.has(collectionPath)) {
         // Merge the new data with the existing data in cache's collection's path's array
         const collectionData = get(collectionPath);
-        collectionData.push(merged);
-        cache.set(collectionPath, collectionData);
+
+        if (Array.isArray(collectionData)) {
+          collectionData.push(merged);
+          cache.set(collectionPath, collectionData);
+        } else {
+          cache.set(collectionPath, [merged]);
+        }
       }
 
       cache.set(`${collectionPath}/${id}`, merged);
@@ -270,8 +270,10 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
           isChanged = true;
           collectionData[index] = finalData;
         } else if (index === -1) {
-          isChanged = true;
-          collectionData.push(finalData);
+          if (Array.isArray(collectionData)) {
+            isChanged = true;
+            collectionData.push(finalData);
+          }
         }
 
         if (isChanged) {
