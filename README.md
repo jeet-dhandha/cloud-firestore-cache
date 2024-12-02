@@ -13,6 +13,14 @@ Install with [npm](https://www.npmjs.com/):
 $ npm install --save @libs-jb/cloud-firestore-cache
 ```
 
+---
+
+# Early Alpha : Unstable ⚠️
+
+- This is an **EARLY, UNSTABLE, PREVIEW RELEASE** of the project. ⚠️ Until v1 is released, it is expected to break often.
+
+---
+
 ## Usage
 
 From `@libs-jb/cloud-firestore-cache` we can use the following functions:
@@ -28,8 +36,13 @@ initializeApp();
 const firestoreInstance = getFirestore();
 const db = FirestoreCache(firestoreInstance, FieldValue);
 
+// Add Doc to Collection
+db.add("test_collection", { test: "test" }, { fetch: true }).then((result) => {
+  console.log("ADD RESULT: ", result);
+});
+
 // Set data
-db.set("test_collection/test_id", { test: "test" }).then((result) => {
+db.set("test_collection/test_id", { test: "test" }, { merge: true, fetch: true }).then((result) => {
   console.log("SET RESULT: ", result);
 });
 
@@ -40,7 +53,7 @@ db.get("test_collection/test_id").then((result) => {
 
 // Update data
 db.update("test_collection/test_id", { test: "updated" }).then((result) => {
-  console.log("UPDATE RESULT: ", result);
+  console.log("UPDATE RESULT: ", result); // `null` - as {fetch: true} is not passed
 });
 
 // Delete data
@@ -69,6 +82,11 @@ exports.db_handler = onRequest(async (request, response) => {
   switch (type) {
     case "get":
       db.get(path).then((result) => {
+        response.send(result);
+      });
+      break;
+    case "add":
+      db.add(path, data).then((result) => {
         response.send(result);
       });
       break;
@@ -103,8 +121,8 @@ const isEmulator = process.env.FUNCTIONS_EMULATOR === "true";
 const fetchCall = (data) =>
   axios.post(
     isEmulator
-      ? "http://127.0.0.1:5001/scrap-nws/us-central1/db_handler"
-      : "https://us-central1-scrap-nws.cloudfunctions.net/db_handler",
+      ? "http://127.0.0.1:5001/demo-project/us-central1/db_handler"
+      : "https://us-central1-demo-project.cloudfunctions.net/db_handler",
     data
   );
 
