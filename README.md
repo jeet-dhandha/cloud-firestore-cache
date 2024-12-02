@@ -17,7 +17,7 @@ $ npm install --save @libs-jb/cloud-firestore-cache
 
 # Early Alpha : Unstable ⚠️
 
-- This is an **EARLY, UNSTABLE, PREVIEW RELEASE** of the project. ⚠️ Until v1 is released, it is expected to break often.
+- This is an **EARLY, UNSTABLE, PREVIEW RELEASE** of the project. ⚠️ Until v1 is released, it is expected to have breaking changes and other issues.
 
 ---
 
