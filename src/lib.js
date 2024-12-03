@@ -59,7 +59,7 @@ function mergeFn(target, ...sources) {
 
 let interval;
 
-const FirestoreCache = (firestoreInstance, FieldValue) => {
+const FirestoreCache = (firestoreInstance) => {
   const db = firestoreInstance;
   const cache = new Map();
   const deletedDocs = new Map();
@@ -374,4 +374,5 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
   };
 };
 
+// eslint-disable-next-line no-undef
 module.exports = FirestoreCache;

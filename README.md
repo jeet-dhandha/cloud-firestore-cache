@@ -29,12 +29,12 @@ From `@libs-jb/cloud-firestore-cache` we can use the following functions:
 
 ```js
 const { initializeApp } = require("firebase-admin/app");
-const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const { getFirestore } = require("firebase-admin/firestore");
 const { FirestoreCache } = require("@libs-jb/cloud-firestore-cache");
 
 initializeApp();
 const firestoreInstance = getFirestore();
-const db = FirestoreCache(firestoreInstance, FieldValue);
+const db = FirestoreCache(firestoreInstance);
 
 // Add Doc to Collection
 db.add("test_collection", { test: "test" }, { fetch: true }).then((result) => {
@@ -69,12 +69,12 @@ In `repo1` - for handling Firestore operations:
 ```js
 const { onRequest } = require("firebase-functions/v2/https");
 const { initializeApp } = require("firebase-admin/app");
-const { getFirestore, FieldValue } = require("firebase-admin/firestore");
+const { getFirestore } = require("firebase-admin/firestore");
 const { FirestoreCache } = require("@libs-jb/cloud-firestore-cache");
 
 initializeApp();
 const firestoreInstance = getFirestore();
-const db = FirestoreCache(firestoreInstance, FieldValue);
+const db = FirestoreCache(firestoreInstance);
 
 exports.db_handler = onRequest(async (request, response) => {
   const { path, data, type } = request.body;
