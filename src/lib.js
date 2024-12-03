@@ -65,6 +65,7 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
   const deletedDocs = new Map();
 
   const isCollection = (path) => path.split("/").length % 2 === 1;
+  const getId = (path) => `${path}`.split("/").pop();
 
   const getLastCollectionPath = (path) => {
     if (isCollection(path)) {
@@ -226,8 +227,8 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
     // Optimisation 1:
     if (!hasFieldValueOrDotKeys && cache.has(path)) {
       const cached = get(path);
-      const merged = mergeFn({}, cached, data, { _id: `${path.split("/")}`.pop() });
-      const assigned = Object.assign({}, cached, data, { _id: `${path.split("/")}`.pop() });
+      const merged = mergeFn({}, cached, data, { _id: getId(path) });
+      const assigned = Object.assign({}, cached, data, { _id: getId(path) });
       const finalData = merge ? merged : assigned;
 
       if (isEqual(cached, finalData)) {
@@ -245,12 +246,12 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
     // Optimisation 2:
     if (!hasFieldValueOrDotKeys && cache.has(path)) {
       const cached = get(path);
-      const merged = mergeFn({}, cached, data, { _id: `${path.split("/")}`.pop() });
-      const assigned = Object.assign({}, cached, data, { _id: `${path.split("/")}`.pop() });
+      const merged = mergeFn({}, cached, data, { _id: getId(path) });
+      const assigned = Object.assign({}, cached, data, { _id: getId(path) });
       const finalData = merge ? merged : assigned;
 
       const lastPath = getLastCollectionPath(path);
-      const id = `${path.split("/")}`.pop();
+      const id = getId(path);
 
       if (cache.has(lastPath)) {
         // Merge the new data with the existing data in cache's collection's path's array
@@ -312,7 +313,7 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
       const merged = Object.assign({}, cached, data);
 
       const lastPath = getLastCollectionPath(path);
-      const id = `${path.split("/")}`.pop();
+      const id = getId(path);
 
       if (cache.has(lastPath)) {
         // Merge the new data with the existing data in cache's collection's path's array
@@ -330,7 +331,7 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
     }
 
     if (!checkForFieldValueOrDotKeys(data) && cache.has(path)) {
-      cache.set(path, Object.assign({}, get(path), data, { _id: `${path.split("/")}`.pop() }));
+      cache.set(path, Object.assign({}, get(path), data, { _id: getId(path) }));
     } else if (hasFieldValueOrDotKeys && cache.has(path)) {
       // Next time, it will fetch from Firestore
       // await get(path, true); // Force fetch from Firestore and set in cache

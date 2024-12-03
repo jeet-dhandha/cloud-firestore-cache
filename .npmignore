@@ -7,4 +7,6 @@ package-lock.json
 /testL
 /src
 .README.md
+eslintrc.config.cjs
+pnpm-lock.yaml
 deploy.sh

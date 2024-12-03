@@ -3,3 +3,4 @@ package-lock.json
 /dist
 /testL
 deploy.sh
+pnpm-lock.yaml
