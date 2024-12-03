@@ -72,10 +72,10 @@ const FirestoreCache = (firestoreInstance, FieldValue) => {
       return path;
     }
 
-    return path
-      .split("/")
-      .filter((part, index) => part !== "" && index - 1 !== pathParts.length)
-      .join("/");
+    const pathArray = path.split("/");
+    pathArray.pop();
+
+    return pathArray.join("/");
   };
 
   let intervalCount = 0;
