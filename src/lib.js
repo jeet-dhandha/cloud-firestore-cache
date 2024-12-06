@@ -350,8 +350,26 @@ const FirestoreCache = (firestoreInstance) => {
 
   const deleteDoc = async (path) => {
     resetInterval();
+    if (isCollection(path)) {
+      return null;
+    }
+
     const docRef = db.doc(path);
     await docRef.delete();
+
+    const lastPath = getLastCollectionPath(path);
+    const id = getId(path);
+
+    if (cache.has(lastPath)) {
+      // Remove the document from the cache's collection's path's array
+      const collectionData = get(lastPath);
+      const index = collectionData.findIndex((d) => d._id === id);
+      if (index !== -1) {
+        collectionData.splice(index, 1);
+        cache.set(lastPath, collectionData);
+      }
+    }
+
     cache.delete(path);
     deletedDocs.set(path, true);
     log(`Document ${path} deleted from Firestore and marked as deleted in cache.`);
