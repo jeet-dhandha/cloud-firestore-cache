@@ -161,8 +161,18 @@ const FirestoreCache = (firestoreInstance) => {
 
     if (docSnap.exists) {
       const data = docSnap.data();
-
       cache.set(path, data);
+
+      if (cache.has(getLastCollectionPath(path))) {
+        const collectionData = await get(getLastCollectionPath(path));
+        const id = getId(path);
+        const index = collectionData.findIndex((d) => d._id === id);
+        if (index !== -1) {
+          collectionData[index] = data;
+          cache.set(getLastCollectionPath(path), collectionData);
+        }
+      }
+
       return deepClone(data);
     } else {
       log(`No document exists at ${path}`);
@@ -265,30 +275,6 @@ const FirestoreCache = (firestoreInstance) => {
       const assigned = Object.assign({}, cached, data, { _id: getId(path) });
       const finalData = merge ? merged : assigned;
 
-      const lastPath = getLastCollectionPath(path);
-      const id = getId(path);
-
-      if (cache.has(lastPath)) {
-        // Merge the new data with the existing data in cache's collection's path's array
-        const collectionData = await get(lastPath);
-        const index = collectionData.findIndex((d) => d._id === id);
-        let isChanged = false;
-
-        if (index !== -1 && !isEqual(collectionData[index], finalData)) {
-          isChanged = true;
-          collectionData[index] = finalData;
-        } else if (index === -1) {
-          if (Array.isArray(collectionData)) {
-            isChanged = true;
-            collectionData.push(finalData);
-          }
-        }
-
-        if (isChanged) {
-          cache.set(lastPath, collectionData);
-        }
-      }
-
       cache.set(path, finalData);
     } else if (hasFieldValueOrDotKeys && cache.has(path)) {
       // Next time, it will fetch from Firestore
@@ -297,6 +283,35 @@ const FirestoreCache = (firestoreInstance) => {
       // Force fetch from Firestore and set in cache
       // This will also update the collection path's array
       return get(path, true);
+    }
+
+    const lastPath = getLastCollectionPath(path);
+    const id = getId(path);
+
+    if (cache.has(lastPath)) {
+      // Merge the new data with the existing data in cache's collection's path's array
+      const collectionData = await get(lastPath);
+      const index = collectionData.findIndex((d) => d._id === id);
+      let isChanged = false;
+      const cached = collectionData[index];
+      const merged = mergeFn({}, cached, data, { _id: getId(path) });
+      const assigned = Object.assign({}, cached, data, { _id: getId(path) });
+      const finalData = merge ? merged : assigned;
+
+      if (index !== -1 && !isEqual(collectionData[index], finalData)) {
+        isChanged = true;
+        collectionData[index] = finalData;
+      } else if (index === -1) {
+        if (Array.isArray(collectionData)) {
+          isChanged = true;
+          collectionData.push(finalData);
+        }
+      }
+
+      if (isChanged) {
+        cache.set(lastPath, collectionData);
+        cache.set(`${lastPath}/${getId(path)}`, merged);
+      }
     }
 
     if (!fetch) {
@@ -316,8 +331,9 @@ const FirestoreCache = (firestoreInstance) => {
 
     if (!hasFieldValueOrDotKeys && cache.has(path)) {
       const cached = await get(path);
+      log("cached", cached);
       const merged = Object.assign({}, cached, data);
-
+      log("merged", merged);
       if (isEqual(cached, merged)) {
         log(`Document ${path} already exists in Firestore and cache.`);
         if (!fetch) return null;
@@ -329,30 +345,10 @@ const FirestoreCache = (firestoreInstance) => {
 
     if (!hasFieldValueOrDotKeys && cache.has(path)) {
       const cached = await get(path);
-      const merged = Object.assign({}, cached, data);
+      const merged = Object.assign({}, cached, data, { _id: getId(path) });
 
-      const lastPath = getLastCollectionPath(path);
-      const id = getId(path);
-
-      if (cache.has(lastPath)) {
-        // Merge the new data with the existing data in cache's collection's path's array
-        const collectionData = await get(lastPath);
-        const index = collectionData.findIndex((d) => d._id === id);
-        let isChanged = false;
-        if (index !== -1 && !isEqual(collectionData[index], merged)) {
-          isChanged = true;
-          collectionData[index] = merged;
-        }
-        if (isChanged) {
-          cache.set(lastPath, collectionData);
-        }
-      }
-
+      log(`Document ${path} set in Firestore and cache. Data: `, merged);
       cache.set(path, merged);
-    }
-
-    if (!checkForFieldValueOrDotKeys(data) && cache.has(path)) {
-      cache.set(path, Object.assign({}, await get(path), data, { _id: getId(path) }));
     } else if (hasFieldValueOrDotKeys && cache.has(path)) {
       // Next time, it will fetch from Firestore
       // cache.delete(path);
@@ -362,12 +358,36 @@ const FirestoreCache = (firestoreInstance) => {
       return get(path, true);
     }
 
+    const lastPath = getLastCollectionPath(path);
+
+    log(`lastPath: ${lastPath}, id: ${getId(path)}`);
+
+    if (cache.has(lastPath)) {
+      // Merge the new data with the existing data in cache's collection's path's array
+      const collectionData = await get(lastPath);
+      const index = collectionData.findIndex((d) => d._id === getId(path));
+      const cached = collectionData[index];
+      const merged = Object.assign({}, cached, data, { _id: getId(path) });
+
+      let isChanged = false;
+      if (index !== -1 && !isEqual(collectionData[index], merged)) {
+        isChanged = true;
+        log(`Document ${path} set in Firestore and cache's collection's path's array.`);
+        collectionData[index] = merged;
+      }
+
+      if (isChanged) {
+        cache.set(lastPath, collectionData);
+        cache.set(`${lastPath}/${getId(path)}`, merged);
+      }
+    }
+
     if (!fetch) {
       log(`Document ${path} updated in Firestore.`);
       return null;
     }
 
-    log(`Document ${path} updated in Firestore and cache.`);
+    log(`Document ${path} updated in Firestore and cache. Data: `, await get(path));
 
     return get(path);
   };
