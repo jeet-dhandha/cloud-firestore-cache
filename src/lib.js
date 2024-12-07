@@ -57,6 +57,10 @@ function mergeFn(target, ...sources) {
   return target;
 }
 
+function deepClone(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
+
 let interval;
 
 const FirestoreCache = (firestoreInstance) => {
@@ -122,7 +126,18 @@ const FirestoreCache = (firestoreInstance) => {
     // Check if the document is in cache
     if (cache.has(path) && !forceGet) {
       log(`Fetching ${path} from cache.`);
-      return cache.get(path);
+      return deepClone(cache.get(path));
+    }
+
+    // Check if the document is in cache of a collection path
+    if (!isCollection(path) && cache.has(getLastCollectionPath(path)) && !forceGet) {
+      const collectionData = await get(getLastCollectionPath(path));
+      const id = getId(path);
+      const doc = collectionData.find((d) => d._id === id);
+      if (doc) {
+        log(`Fetching ${path} from cache.`);
+        return deepClone(doc);
+      }
     }
 
     // If not in cache, fetch from Firestore
@@ -135,7 +150,7 @@ const FirestoreCache = (firestoreInstance) => {
       if (docSnap.docs.length > 0) {
         const data = docSnap.docs.map((doc) => ({ ...doc.data(), _id: doc.id }));
         cache.set(path, data);
-        return data;
+        return deepClone(data);
       }
 
       log(`No documents exist at ${path}`);
@@ -148,7 +163,7 @@ const FirestoreCache = (firestoreInstance) => {
       const data = docSnap.data();
 
       cache.set(path, data);
-      return data;
+      return deepClone(data);
     } else {
       log(`No document exists at ${path}`);
       cache.delete(path);
@@ -277,7 +292,11 @@ const FirestoreCache = (firestoreInstance) => {
       cache.set(path, finalData);
     } else if (hasFieldValueOrDotKeys && cache.has(path)) {
       // Next time, it will fetch from Firestore
-      cache.delete(path);
+      // cache.delete(path);
+
+      // Force fetch from Firestore and set in cache
+      // This will also update the collection path's array
+      return get(path, true);
     }
 
     if (!fetch) {
@@ -328,14 +347,19 @@ const FirestoreCache = (firestoreInstance) => {
           cache.set(lastPath, collectionData);
         }
       }
+
+      cache.set(path, merged);
     }
 
     if (!checkForFieldValueOrDotKeys(data) && cache.has(path)) {
       cache.set(path, Object.assign({}, await get(path), data, { _id: getId(path) }));
     } else if (hasFieldValueOrDotKeys && cache.has(path)) {
       // Next time, it will fetch from Firestore
-      // await get(path, true); // Force fetch from Firestore and set in cache
-      cache.delete(path);
+      // cache.delete(path);
+
+      // Force fetch from Firestore and set in cache
+      // This will also update the collection path's array
+      return get(path, true);
     }
 
     if (!fetch) {
